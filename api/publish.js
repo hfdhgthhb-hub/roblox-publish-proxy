@@ -1,4 +1,3 @@
-
 // Vercel serverless function: api/publish.js  (replace your old file with this one)
 // Uses CommonJS so it works with no package.json changes.
 const BASE = 'https://apis.roblox.com';
@@ -14,6 +13,27 @@ function luaStr(s) {
     else out += '\\' + String(c).padStart(3, '0');
   }
   return out + '"';
+}
+
+// Turn Roblox error replies into short, readable messages
+function cleanErr(text, status) {
+  let j;
+  try { j = JSON.parse(text); } catch (e) {}
+  const msg = (j && (j.message || j.error)) || String(text).slice(0, 200);
+  const code = j && j.code;
+  if (code === 'PERMISSION_DENIED' || status === 403) {
+    if (/luau-execution/.test(msg)) {
+      return 'API key is missing the Luau Execution permission. Edit the key: add API System "Luau Execution", operation Write, and add this experience.';
+    }
+    return 'API key is missing a permission: ' + msg;
+  }
+  if (status === 401 || code === 'UNAUTHENTICATED') {
+    return 'API key is invalid, expired, or has an IP restriction.';
+  }
+  if (status === 404) {
+    return 'Not found. Check the Place ID and that the key has this experience added.';
+  }
+  return 'Roblox: ' + msg;
 }
 
 // Runs inside Roblox's cloud on the TARGET place
@@ -95,7 +115,7 @@ module.exports = async (req, res) => {
           body: JSON.stringify({ script, timeout: '120s' }),
         }
       );
-      if (!tRes.ok) return res.json({ ok: false, error: 'Roblox: ' + (await tRes.text()).slice(0, 300) });
+      if (!tRes.ok) return res.json({ ok: false, error: cleanErr(await tRes.text(), tRes.status) });
       const task = await tRes.json();
 
       // 3) optional name / description (best effort)
@@ -124,7 +144,7 @@ module.exports = async (req, res) => {
         return res.json({ ok: false, error: 'Bad task path' });
       }
       const r = await fetch(`${BASE}/cloud/v2/${p}`, { headers: { 'x-api-key': apiKey } });
-      if (!r.ok) return res.json({ ok: false, error: 'Roblox: ' + (await r.text()).slice(0, 300) });
+      if (!r.ok) return res.json({ ok: false, error: cleanErr(await r.text(), r.status) });
       const t = await r.json();
       return res.json({
         ok: true,
