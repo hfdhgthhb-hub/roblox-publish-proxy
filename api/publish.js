@@ -22,10 +22,8 @@ function cleanErr(text, status) {
   const msg = (j && (j.message || j.error)) || String(text).slice(0, 200);
   const code = j && j.code;
   if (code === 'PERMISSION_DENIED' || status === 403) {
-    if (/luau-execution/.test(msg)) {
-      return 'API key is missing the Luau Execution permission. Edit the key: add API System "Luau Execution", operation Write, and add this experience.';
-    }
-    return 'API key is missing a permission: ' + msg;
+    // include Roblox's exact words so we can see which scope is missing
+    return 'Permission denied by Roblox. Exact reason: ' + msg;
   }
   if (status === 401 || code === 'UNAUTHENTICATED') {
     return 'API key is invalid, expired, or has an IP restriction.';
