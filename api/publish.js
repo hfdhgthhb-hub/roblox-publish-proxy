@@ -36,27 +36,29 @@ function cleanErr(text, status) {
 
 // Runs inside Roblox's cloud on the TARGET place
 const CLOUD_BODY = `
-local SKIP = { Terrain = true, Camera = true }
+-- these are kept in the target place (never deleted)
+local SKIP = { Terrain = true, Camera = true, PublishServer = true, PublishClient = true, PublishRemote = true, Mm = true }
+
+local function dec(v)
+	if type(v) ~= "table" then return v end
+	local t, a = v.t, v.v
+	if t == "C" then return Color3.new(a[1], a[2], a[3]) end
+	if t == "V" then return Vector3.new(a[1], a[2], a[3]) end
+	if t == "W" then return Vector2.new(a[1], a[2]) end
+	if t == "F" then return CFrame.new(table.unpack(a)) end
+	if t == "E" then return Enum[a[1]][a[2]] end
+	return nil
+end
 
 local function build(node, parent)
 	local ok, inst = pcall(Instance.new, node.c)
 	if not ok then return 0 end
 	local n = 1
-	pcall(function()
-		inst.Name = node.n
-		if node.size then
-			inst.Size = Vector3.new(table.unpack(node.size))
-			inst.CFrame = CFrame.new(table.unpack(node.cf))
-			inst.Color = Color3.new(table.unpack(node.col))
-			inst.Material = Enum.Material[node.mat]
-			inst.Transparency = node.tr
-			inst.Anchored = node.an
-			inst.CanCollide = node.cc
-			if node.shape then inst.Shape = Enum.PartType[node.shape] end
-		end
-	end)
+	pcall(function() inst.Name = node.n end)
+	for k, v in pairs(node.p or {}) do
+		pcall(function() inst[k] = dec(v) end)
+	end
 	if node.src ~= nil then pcall(function() inst.Source = node.src end) end
-	if node.dis ~= nil then pcall(function() inst.Disabled = node.dis end) end
 	for _, child in ipairs(node.ch or {}) do
 		n += build(child, inst)
 	end
